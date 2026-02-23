@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "auth-injection-proxy"
+version = "0.1.0"
+description = "mitmproxy addon that transparently injects authentication into AI agent HTTP traffic"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "mitmproxy>=12.0,<13",
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    "pyyaml>=6.0",
+    "pydantic>=2.0",
+    "watchfiles>=1.0",
+    "httpx>=0.28",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-httpx>=0.34",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "coverage>=7.0",
+    "types-PyYAML>=6.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/auth_injection_proxy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+packages = ["auth_injection_proxy"]
+mypy_path = "src"

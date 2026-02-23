@@ -1,0 +1,39 @@
+networks:
+  agent-net:
+    internal: true
+  proxy-external:
+    driver: bridge
+
+services:
+  auth-proxy:
+    build: .
+    networks:
+      agent-net: {}
+      proxy-external: {}
+    ports:
+      - "127.0.0.1:8081:8081"
+    volumes:
+      - ./credentials.yaml:/data/config/credentials.yaml
+      - proxy-certs:/data/certs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/status"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  agent:
+    image: your-agent-image
+    networks:
+      - agent-net
+    environment:
+      - HTTP_PROXY=http://auth-proxy:8080
+      - HTTPS_PROXY=http://auth-proxy:8080
+      - REQUESTS_CA_BUNDLE=/usr/local/share/ca-certificates/mitmproxy-ca.crt
+    volumes:
+      - proxy-certs:/usr/local/share/ca-certificates:ro
+    depends_on:
+      auth-proxy:
+        condition: service_healthy
+
+volumes:
+  proxy-certs:
