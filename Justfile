@@ -41,3 +41,29 @@ run CONFIG="config.example.yaml":
 # Build Docker image
 docker-build TAG="auth-injection-proxy:latest":
     docker build -t {{TAG}} .
+
+# Print current version from pyproject.toml
+version:
+    @grep '^version' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/'
+
+# Release a new version: validates semver, updates pyproject.toml, locks, commits, tags
+release VERSION:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! echo "{{VERSION}}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+        echo "Error: '{{VERSION}}' is not valid semver (expected X.Y.Z)" >&2
+        exit 1
+    fi
+    CURRENT=$(grep '^version' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+    if [ "$CURRENT" = "{{VERSION}}" ]; then
+        echo "Error: version is already {{VERSION}}" >&2
+        exit 1
+    fi
+    sed -i "s/^version = \"$CURRENT\"/version = \"{{VERSION}}\"/" pyproject.toml
+    uv lock
+    git add pyproject.toml uv.lock
+    git commit -m "Release v{{VERSION}}"
+    git tag -a "v{{VERSION}}" -m "v{{VERSION}}"
+    echo ""
+    echo "Tagged v{{VERSION}}. Push with:"
+    echo "  git push origin main --tags"
