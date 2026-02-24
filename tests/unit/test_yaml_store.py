@@ -101,6 +101,20 @@ class TestYamlStore:
         # Previous rules preserved
         assert len(store._rules) == 1
 
+    async def test_save_excludes_none_path_prefix(self, tmp_path):
+        """Regression: path_prefix=None must not appear as 'null' in YAML (#2)."""
+        path = tmp_path / "store.yaml"
+        path.write_text("credentials: []\n")
+        store = YamlCredentialStore(str(path))
+        rule = CredentialRule(
+            id="no-prefix",
+            domain="example.com",
+            auth=BearerAuth(type="bearer", token="tok"),
+        )
+        await store.create(rule)
+        raw = path.read_text()
+        assert "path_prefix" not in raw
+
     def test_atomic_write(self, tmp_path):
         """Atomic write uses os.replace so partial writes don't corrupt."""
         path = tmp_path / "store.yaml"

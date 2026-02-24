@@ -46,7 +46,7 @@ class YamlCredentialStore(CredentialStore):
 
     def _save(self) -> None:
         """Atomically write rules to YAML file via temp file + os.replace."""
-        data = {"credentials": [r.model_dump() for r in self._rules]}
+        data = {"credentials": [r.model_dump(exclude_none=True) for r in self._rules]}
         dir_path = self._path.parent
         dir_path.mkdir(parents=True, exist_ok=True)
         fd, tmp_path = tempfile.mkstemp(dir=str(dir_path), suffix=".yaml.tmp")
