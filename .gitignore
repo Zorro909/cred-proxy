@@ -211,3 +211,4 @@ thoughts/
 .tldr/
 .tldrignore
 auth-injection-proxy-implementation-spec.md
+.claude/tsc-cache/

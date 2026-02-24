@@ -55,5 +55,6 @@ nav:
   - API Reference:
       - Management API: api/management.md
       - Agent API: api/agent.md
+  - Agent Integration: agent-integration.md
   - Deployment: deployment.md
   - Development: development.md
