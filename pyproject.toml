@@ -31,6 +31,9 @@ dev = [
     "coverage>=7.0",
     "types-PyYAML>=6.0",
 ]
+docs = [
+    "mkdocs-material>=9.5",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/auth_injection_proxy"]

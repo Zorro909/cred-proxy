@@ -1,8 +1,8 @@
 # Auth Injection Proxy — Task Runner
 
-# Install all dependencies including dev extras
+# Install all dependencies including dev and docs extras
 install:
-    uv sync --extra dev
+    uv sync --extra dev --extra docs
 
 # Run linter and format checker
 lint:
@@ -37,6 +37,16 @@ run CONFIG="config.example.yaml":
         --set block_global=false \
         -s src/auth_injection_proxy/addon.py \
         --set config_path="{{CONFIG}}"
+
+# Serve docs locally with live-reload
+docs:
+    uv sync --extra docs
+    uv run mkdocs serve
+
+# Build docs site (strict mode — fails on warnings)
+docs-build:
+    uv sync --extra docs
+    uv run mkdocs build --strict
 
 # Build Docker image
 docker-build TAG="auth-injection-proxy:latest":
