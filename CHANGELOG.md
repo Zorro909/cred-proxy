@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-02-24
+
+### Fixed
+
+- Docker image failing to start because `mitmdump` was not on PATH (#1)
+
 ## [0.1.0] - 2025-02-22
 
 ### Added

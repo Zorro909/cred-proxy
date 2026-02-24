@@ -18,6 +18,9 @@ COPY README.md ./
 COPY src/ src/
 RUN uv sync --frozen --no-dev --no-editable
 
+# Make venv binaries available without activation
+ENV PATH="/app/.venv/bin:$PATH"
+
 COPY scripts/ scripts/
 
 # Volumes
