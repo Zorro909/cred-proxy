@@ -46,14 +46,18 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
+      - name: Repository name lowercase
+        id: repo
+        run: echo "name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.full }}
-            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.major_minor }}
-            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ steps.version.outputs.full }}
+            ghcr.io/${{ steps.repo.outputs.name }}:${{ steps.version.outputs.major_minor }}
+            ghcr.io/${{ steps.repo.outputs.name }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -71,6 +75,10 @@ jobs:
       - name: Extract version from tag
         id: version
         run: echo "tag=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Repository name lowercase
+        id: repo
+        run: echo "name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
       - name: Extract changelog for this version
         id: changelog
@@ -96,5 +104,5 @@ jobs:
 
             **Docker:**
             ```
-            docker pull ghcr.io/${{ github.repository }}:${{ steps.version.outputs.tag }}
+            docker pull ghcr.io/${{ steps.repo.outputs.name }}:${{ steps.version.outputs.tag }}
             ```
