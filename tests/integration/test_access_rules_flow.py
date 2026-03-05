@@ -39,11 +39,13 @@ class TestAccessRulesFlow:
         if not matcher.is_allowed(host, path):
             flow.response = http.Response.make(
                 403,
-                json.dumps({
-                    "error": "access_denied",
-                    "message": f"Request to {host}{path} is blocked by access rules",
-                    "proxy": "cred-proxy",
-                }).encode(),
+                json.dumps(
+                    {
+                        "error": "access_denied",
+                        "message": f"Request to {host}{path} is blocked by access rules",
+                        "proxy": "cred-proxy",
+                    }
+                ).encode(),
                 {"Content-Type": "application/json"},
             )
 
@@ -62,11 +64,13 @@ class TestAccessRulesFlow:
         if not matcher.is_allowed(host, path):
             flow.response = http.Response.make(
                 403,
-                json.dumps({
-                    "error": "access_denied",
-                    "message": f"Request to {host}{path} is blocked by access rules",
-                    "proxy": "cred-proxy",
-                }).encode(),
+                json.dumps(
+                    {
+                        "error": "access_denied",
+                        "message": f"Request to {host}{path} is blocked by access rules",
+                        "proxy": "cred-proxy",
+                    }
+                ).encode(),
                 {"Content-Type": "application/json"},
             )
 
@@ -97,7 +101,8 @@ class TestAccessRulesFlow:
         access_matcher = AccessRuleMatcher([_access_rule()])
         cred_rules = [
             CredentialRule(
-                id="gh", domain="api.github.com",
+                id="gh",
+                domain="api.github.com",
                 auth=BearerAuth(type="bearer", token="secret"),
             )
         ]
@@ -113,9 +118,7 @@ class TestAccessRulesFlow:
         else:
             rule = cred_matcher.match(host, flow.request.path)
             if rule:
-                await inject_auth(
-                    flow, rule, OAuth2TokenManager(), ExternalScriptManager(), "."
-                )
+                await inject_auth(flow, rule, OAuth2TokenManager(), ExternalScriptManager(), ".")
 
         # Verify no credentials were injected
         assert "Authorization" not in flow.request.headers
@@ -125,7 +128,8 @@ class TestAccessRulesFlow:
         access_matcher = AccessRuleMatcher([_access_rule()])
         cred_rules = [
             CredentialRule(
-                id="gh", domain="api.github.com",
+                id="gh",
+                domain="api.github.com",
                 auth=BearerAuth(type="bearer", token="secret"),
             )
         ]
@@ -138,9 +142,7 @@ class TestAccessRulesFlow:
         if access_matcher.is_allowed(host, path):
             rule = cred_matcher.match(host, flow.request.path)
             if rule:
-                await inject_auth(
-                    flow, rule, OAuth2TokenManager(), ExternalScriptManager(), "."
-                )
+                await inject_auth(flow, rule, OAuth2TokenManager(), ExternalScriptManager(), ".")
 
         assert flow.request.headers.get("Authorization") == "Bearer secret"
 
@@ -149,9 +151,11 @@ class TestAccessRulesFlow:
         # The /__auth/ path is handled before access rule checking in addon.py
         # So we just verify that the access matcher would block it,
         # but the addon handles /__auth/ first.
-        matcher = AccessRuleMatcher([
-            _access_rule(mode="allow", paths=[]),  # block everything
-        ])
+        matcher = AccessRuleMatcher(
+            [
+                _access_rule(mode="allow", paths=[]),  # block everything
+            ]
+        )
 
         # The /__auth/ path check happens before access rules in the addon
         flow = make_flow("https://api.github.com/__auth/credentials")

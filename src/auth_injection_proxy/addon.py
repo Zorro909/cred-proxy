@@ -83,7 +83,6 @@ class AuthInjectionAddon:
             store=self._store,
             pending=self._pending,
             mgmt_port=self._config.proxy.mgmt_port,
-            access_store=self._access_store,
         )
 
         # Start management API in daemon thread
@@ -136,13 +135,15 @@ class AuthInjectionAddon:
             if not access_rule.is_allowed(clean_path):
                 flow.response = http.Response.make(
                     403,
-                    json.dumps({
-                        "error": "access_denied",
-                        "message": (
-                            f"Request to {host}{clean_path} is blocked by access rules"
-                        ),
-                        "proxy": "cred-proxy",
-                    }).encode(),
+                    json.dumps(
+                        {
+                            "error": "access_denied",
+                            "message": (
+                                f"Request to {host}{clean_path} is blocked by access rules"
+                            ),
+                            "proxy": "cred-proxy",
+                        }
+                    ).encode(),
                     {"Content-Type": "application/json"},
                 )
                 logger.warning(

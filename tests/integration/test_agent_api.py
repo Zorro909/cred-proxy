@@ -281,5 +281,3 @@ class TestStatusPolling:
         flow.request.path = "/__auth/request/fakefake/status"
         await handler.handle(flow)
         assert flow.response.status_code == 404
-
-

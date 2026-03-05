@@ -19,31 +19,42 @@ def _write_drop_in(tmp_path, filename, content):
 class TestAccessRuleStore:
     def test_load_main_file(self, tmp_path):
         """AC-10.23: Store loads rules from access-rules.yaml."""
-        _write_main(tmp_path, """access_rules:
+        _write_main(
+            tmp_path,
+            """access_rules:
   - id: r1
     domain: api.github.com
     mode: allow
     paths:
       - "^/repos/"
-""")
+""",
+        )
         store = AccessRuleStore(tmp_path)
         assert len(store.rules) == 1
         assert store.rules[0].id == "r1"
 
     def test_load_drop_in_files(self, tmp_path):
         """AC-10.24: Store loads rules from access-rules.d/*.yaml in sorted order."""
-        _write_drop_in(tmp_path, "b_github.yaml", """access_rules:
+        _write_drop_in(
+            tmp_path,
+            "b_github.yaml",
+            """access_rules:
   - id: r2
     domain: api.github.com
     mode: allow
     paths: ["^/repos/"]
-""")
-        _write_drop_in(tmp_path, "a_openai.yaml", """access_rules:
+""",
+        )
+        _write_drop_in(
+            tmp_path,
+            "a_openai.yaml",
+            """access_rules:
   - id: r1
     domain: api.openai.com
     mode: deny
     paths: ["^/v1/files"]
-""")
+""",
+        )
         store = AccessRuleStore(tmp_path)
         assert len(store.rules) == 2
         # a_openai loaded first (sorted), so r1 comes first
@@ -52,18 +63,25 @@ class TestAccessRuleStore:
 
     def test_merge_main_and_drop_in(self, tmp_path):
         """AC-10.25: Rules from main file and drop-in files are merged."""
-        _write_main(tmp_path, """access_rules:
+        _write_main(
+            tmp_path,
+            """access_rules:
   - id: r1
     domain: api.github.com
     mode: allow
     paths: ["^/repos/"]
-""")
-        _write_drop_in(tmp_path, "openai.yaml", """access_rules:
+""",
+        )
+        _write_drop_in(
+            tmp_path,
+            "openai.yaml",
+            """access_rules:
   - id: r2
     domain: api.openai.com
     mode: deny
     paths: ["^/v1/files"]
-""")
+""",
+        )
         store = AccessRuleStore(tmp_path)
         assert len(store.rules) == 2
         groups = store.groups
@@ -77,46 +95,64 @@ class TestAccessRuleStore:
 
     def test_duplicate_ids_across_files(self, tmp_path):
         """AC-10.27: Duplicate IDs across main + drop-in raises ValueError."""
-        _write_main(tmp_path, """access_rules:
+        _write_main(
+            tmp_path,
+            """access_rules:
   - id: r1
     domain: api.github.com
     mode: allow
     paths: []
-""")
-        _write_drop_in(tmp_path, "dup.yaml", """access_rules:
+""",
+        )
+        _write_drop_in(
+            tmp_path,
+            "dup.yaml",
+            """access_rules:
   - id: r1
     domain: api.openai.com
     mode: deny
     paths: []
-""")
+""",
+        )
         with pytest.raises(ValueError, match="Duplicate access rule IDs"):
             AccessRuleStore(tmp_path)
 
     def test_duplicate_domains_across_files(self, tmp_path):
         """AC-10.28: Duplicate domains across files raises ValueError."""
-        _write_main(tmp_path, """access_rules:
+        _write_main(
+            tmp_path,
+            """access_rules:
   - id: r1
     domain: api.github.com
     mode: allow
     paths: []
-""")
-        _write_drop_in(tmp_path, "dup.yaml", """access_rules:
+""",
+        )
+        _write_drop_in(
+            tmp_path,
+            "dup.yaml",
+            """access_rules:
   - id: r2
     domain: api.github.com
     mode: deny
     paths: []
-""")
+""",
+        )
         with pytest.raises(ValueError, match="Duplicate access rule domains"):
             AccessRuleStore(tmp_path)
 
     def test_invalid_drop_in_skipped(self, tmp_path):
         """AC-10.29: Invalid YAML in one drop-in file skips it, loads others."""
-        _write_drop_in(tmp_path, "good.yaml", """access_rules:
+        _write_drop_in(
+            tmp_path,
+            "good.yaml",
+            """access_rules:
   - id: r1
     domain: api.github.com
     mode: allow
     paths: ["^/repos/"]
-""")
+""",
+        )
         _write_drop_in(tmp_path, "bad.yaml", "{{{invalid yaml")
         store = AccessRuleStore(tmp_path)
         assert len(store.rules) == 1
@@ -164,24 +200,36 @@ class TestAccessRuleStore:
 
     def test_sorted_file_loading(self, tmp_path):
         """AC-10.32: Drop-in files loaded in lexicographic order."""
-        _write_drop_in(tmp_path, "z_last.yaml", """access_rules:
+        _write_drop_in(
+            tmp_path,
+            "z_last.yaml",
+            """access_rules:
   - id: r3
     domain: c.com
     mode: deny
     paths: []
-""")
-        _write_drop_in(tmp_path, "a_first.yaml", """access_rules:
+""",
+        )
+        _write_drop_in(
+            tmp_path,
+            "a_first.yaml",
+            """access_rules:
   - id: r1
     domain: a.com
     mode: allow
     paths: []
-""")
-        _write_drop_in(tmp_path, "m_middle.yaml", """access_rules:
+""",
+        )
+        _write_drop_in(
+            tmp_path,
+            "m_middle.yaml",
+            """access_rules:
   - id: r2
     domain: b.com
     mode: deny
     paths: []
-""")
+""",
+        )
         store = AccessRuleStore(tmp_path)
         assert [r.id for r in store.rules] == ["r1", "r2", "r3"]
 
@@ -189,12 +237,15 @@ class TestAccessRuleStore:
         """AC-10.33: Mode other than 'allow'/'deny' raises ValidationError.
         The store's _load_file catches ValidationError and skips the file,
         so the store loads with 0 rules (file is skipped)."""
-        _write_main(tmp_path, """access_rules:
+        _write_main(
+            tmp_path,
+            """access_rules:
   - id: r1
     domain: api.github.com
     mode: block
     paths: []
-""")
+""",
+        )
         store = AccessRuleStore(tmp_path)
         # Invalid file is skipped, no rules loaded
         assert len(store.rules) == 0
@@ -202,13 +253,16 @@ class TestAccessRuleStore:
     def test_invalid_regex_rejected_on_load(self, tmp_path):
         """AC-10.34: Invalid regex in YAML raises ValidationError.
         The store's _load_file catches ValidationError and skips the file."""
-        _write_main(tmp_path, """access_rules:
+        _write_main(
+            tmp_path,
+            """access_rules:
   - id: r1
     domain: api.github.com
     mode: allow
     paths:
       - "[invalid"
-""")
+""",
+        )
         store = AccessRuleStore(tmp_path)
         # Invalid file is skipped, no rules loaded
         assert len(store.rules) == 0
