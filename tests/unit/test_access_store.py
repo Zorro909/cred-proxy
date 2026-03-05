@@ -141,8 +141,8 @@ class TestAccessRuleStore:
         with pytest.raises(ValueError, match="Duplicate access rule domains"):
             AccessRuleStore(tmp_path)
 
-    def test_invalid_drop_in_skipped(self, tmp_path):
-        """AC-10.29: Invalid YAML in one drop-in file skips it, loads others."""
+    def test_invalid_drop_in_aborts_load(self, tmp_path):
+        """AC-10.29: Invalid YAML in any drop-in file aborts the entire load."""
         _write_drop_in(
             tmp_path,
             "good.yaml",
@@ -154,9 +154,8 @@ class TestAccessRuleStore:
 """,
         )
         _write_drop_in(tmp_path, "bad.yaml", "{{{invalid yaml")
-        store = AccessRuleStore(tmp_path)
-        assert len(store.rules) == 1
-        assert store.rules[0].id == "r1"
+        with pytest.raises(ValueError, match="Failed to load access rules"):
+            AccessRuleStore(tmp_path)
 
     async def test_crud_operations(self, tmp_path):
         """AC-10.30: Create/read/update/delete access rules through store."""
@@ -234,9 +233,7 @@ class TestAccessRuleStore:
         assert [r.id for r in store.rules] == ["r1", "r2", "r3"]
 
     def test_invalid_mode_rejected(self, tmp_path):
-        """AC-10.33: Mode other than 'allow'/'deny' raises ValidationError.
-        The store's _load_file catches ValidationError and skips the file,
-        so the store loads with 0 rules (file is skipped)."""
+        """AC-10.33: Mode other than 'allow'/'deny' raises ValueError on startup."""
         _write_main(
             tmp_path,
             """access_rules:
@@ -246,13 +243,11 @@ class TestAccessRuleStore:
     paths: []
 """,
         )
-        store = AccessRuleStore(tmp_path)
-        # Invalid file is skipped, no rules loaded
-        assert len(store.rules) == 0
+        with pytest.raises(ValueError, match="Failed to load access rules"):
+            AccessRuleStore(tmp_path)
 
     def test_invalid_regex_rejected_on_load(self, tmp_path):
-        """AC-10.34: Invalid regex in YAML raises ValidationError.
-        The store's _load_file catches ValidationError and skips the file."""
+        """AC-10.34: Invalid regex in YAML raises ValueError on startup."""
         _write_main(
             tmp_path,
             """access_rules:
@@ -263,6 +258,5 @@ class TestAccessRuleStore:
       - "[invalid"
 """,
         )
-        store = AccessRuleStore(tmp_path)
-        # Invalid file is skipped, no rules loaded
-        assert len(store.rules) == 0
+        with pytest.raises(ValueError, match="Failed to load access rules"):
+            AccessRuleStore(tmp_path)

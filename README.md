@@ -6,7 +6,7 @@
 
 **Transparent authentication injection proxy for AI agents.**
 
-cred-proxy is a [mitmproxy](https://mitmproxy.org/)-based proxy that sits between your AI agent and external APIs. It automatically injects authentication credentials into outbound HTTP requests so agents never handle secrets directly. Supports bearer tokens, basic auth, custom headers, query parameters, OAuth2 client credentials, and external credential scripts.
+cred-proxy is a [mitmproxy](https://mitmproxy.org/)-based proxy that sits between your AI agent and external APIs. It automatically injects authentication credentials into outbound HTTP requests so agents never handle secrets directly. Supports bearer tokens, basic auth, custom headers, query parameters, OAuth2 client credentials, and external credential scripts. Access rules provide URL-level allowlist/denylist filtering per domain.
 
 ```mermaid
 flowchart LR
@@ -97,7 +97,7 @@ The agent polls for status; once a user fills in the form, the credential is liv
 # Install dependencies
 just install
 
-# Run tests (133 tests)
+# Run tests (217 tests)
 just test
 
 # Lint + type check
