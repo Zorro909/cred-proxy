@@ -105,9 +105,7 @@ class AccessRuleStore:
 
         data = {"access_rules": [r.model_dump() for r in group.rules]}
         group.path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp_path = tempfile.mkstemp(
-            dir=str(group.path.parent), suffix=".yaml.tmp"
-        )
+        fd, tmp_path = tempfile.mkstemp(dir=str(group.path.parent), suffix=".yaml.tmp")
         try:
             with os.fdopen(fd, "w") as f:
                 yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
@@ -160,8 +158,7 @@ class AccessRuleStore:
                 raise ValueError(f"Access rule '{rule.id}' already exists")
             if existing.domain.lower() == rule.domain.lower():
                 raise ValueError(
-                    f"Access rule for domain '{rule.domain}' already exists "
-                    f"(id: '{existing.id}')"
+                    f"Access rule for domain '{rule.domain}' already exists (id: '{existing.id}')"
                 )
 
         # Create group if it doesn't exist

@@ -87,12 +87,15 @@ class TestGetAccessRule:
 class TestCreateAccessRule:
     def test_create_in_default_group(self, empty_client):
         """AC-10.47: POST without group creates in default (access-rules.yaml)."""
-        resp = empty_client.post("/api/access-rules", json={
-            "id": "new-rule",
-            "domain": "example.com",
-            "mode": "allow",
-            "paths": ["^/api/"],
-        })
+        resp = empty_client.post(
+            "/api/access-rules",
+            json={
+                "id": "new-rule",
+                "domain": "example.com",
+                "mode": "allow",
+                "paths": ["^/api/"],
+            },
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["id"] == "new-rule"
@@ -103,13 +106,16 @@ class TestCreateAccessRule:
 
     def test_create_in_named_group(self, empty_client):
         """AC-10.48: POST with group='github' creates in access-rules.d/github.yaml."""
-        resp = empty_client.post("/api/access-rules", json={
-            "id": "gh-rule",
-            "domain": "api.github.com",
-            "mode": "allow",
-            "paths": ["^/repos/"],
-            "group": "github",
-        })
+        resp = empty_client.post(
+            "/api/access-rules",
+            json={
+                "id": "gh-rule",
+                "domain": "api.github.com",
+                "mode": "allow",
+                "paths": ["^/repos/"],
+                "group": "github",
+            },
+        )
         assert resp.status_code == 201
 
         listed = empty_client.get("/api/access-rules").json()
@@ -117,52 +123,67 @@ class TestCreateAccessRule:
 
     def test_create_duplicate_id(self, client):
         """AC-10.49: POST with duplicate ID returns 409."""
-        resp = client.post("/api/access-rules", json={
-            "id": "github-allowlist",
-            "domain": "other.com",
-            "mode": "deny",
-            "paths": [],
-        })
+        resp = client.post(
+            "/api/access-rules",
+            json={
+                "id": "github-allowlist",
+                "domain": "other.com",
+                "mode": "deny",
+                "paths": [],
+            },
+        )
         assert resp.status_code == 409
 
     def test_create_duplicate_domain(self, client):
         """AC-10.50: POST with duplicate domain returns 409."""
-        resp = client.post("/api/access-rules", json={
-            "id": "another-rule",
-            "domain": "api.github.com",
-            "mode": "deny",
-            "paths": [],
-        })
+        resp = client.post(
+            "/api/access-rules",
+            json={
+                "id": "another-rule",
+                "domain": "api.github.com",
+                "mode": "deny",
+                "paths": [],
+            },
+        )
         assert resp.status_code == 409
 
     def test_create_invalid_regex(self, empty_client):
         """AC-10.51: POST with invalid regex returns 422 (Pydantic validation)."""
-        resp = empty_client.post("/api/access-rules", json={
-            "id": "bad-regex",
-            "domain": "example.com",
-            "mode": "allow",
-            "paths": ["[invalid"],
-        })
+        resp = empty_client.post(
+            "/api/access-rules",
+            json={
+                "id": "bad-regex",
+                "domain": "example.com",
+                "mode": "allow",
+                "paths": ["[invalid"],
+            },
+        )
         assert resp.status_code == 422
 
     def test_create_invalid_mode(self, empty_client):
         """AC-10.52: POST with invalid mode returns 422 (Pydantic Literal validation)."""
-        resp = empty_client.post("/api/access-rules", json={
-            "id": "bad-mode",
-            "domain": "example.com",
-            "mode": "block",
-            "paths": [],
-        })
+        resp = empty_client.post(
+            "/api/access-rules",
+            json={
+                "id": "bad-mode",
+                "domain": "example.com",
+                "mode": "block",
+                "paths": [],
+            },
+        )
         assert resp.status_code == 422
 
 
 class TestUpdateAccessRule:
     def test_update_access_rule(self, client):
         """AC-10.53: PUT updates rule in its current group file."""
-        resp = client.put("/api/access-rules/github-allowlist", json={
-            "mode": "deny",
-            "paths": ["^/admin"],
-        })
+        resp = client.put(
+            "/api/access-rules/github-allowlist",
+            json={
+                "mode": "deny",
+                "paths": ["^/admin"],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["mode"] == "deny"
@@ -170,9 +191,12 @@ class TestUpdateAccessRule:
 
     def test_update_nonexistent(self, client):
         """AC-10.54: PUT on unknown ID returns 404."""
-        resp = client.put("/api/access-rules/nonexistent", json={
-            "mode": "deny",
-        })
+        resp = client.put(
+            "/api/access-rules/nonexistent",
+            json={
+                "mode": "deny",
+            },
+        )
         assert resp.status_code == 404
 
 

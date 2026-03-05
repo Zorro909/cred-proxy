@@ -28,9 +28,7 @@ class AccessRuleCreateRequest(BaseModel):
             try:
                 re.compile(pattern)
             except re.error as e:
-                raise ValueError(
-                    f"Invalid regex at paths[{i}] ({pattern!r}): {e}"
-                ) from e
+                raise ValueError(f"Invalid regex at paths[{i}] ({pattern!r}): {e}") from e
         return v
 
 
@@ -48,9 +46,7 @@ class AccessRuleUpdateRequest(BaseModel):
             try:
                 re.compile(pattern)
             except re.error as e:
-                raise ValueError(
-                    f"Invalid regex at paths[{i}] ({pattern!r}): {e}"
-                ) from e
+                raise ValueError(f"Invalid regex at paths[{i}] ({pattern!r}): {e}") from e
         return v
 
 
@@ -60,12 +56,7 @@ def create_access_rules_router(access_store: AccessRuleStore) -> APIRouter:
     @router.get("")
     async def list_access_rules() -> dict:
         groups = await access_store.list_groups()
-        return {
-            "groups": {
-                name: [r.model_dump() for r in rules]
-                for name, rules in groups.items()
-            }
-        }
+        return {"groups": {name: [r.model_dump() for r in rules] for name, rules in groups.items()}}
 
     @router.get("/{rule_id}")
     async def get_access_rule(rule_id: str) -> dict:
@@ -86,12 +77,14 @@ def create_access_rules_router(access_store: AccessRuleStore) -> APIRouter:
             )
 
         try:
-            rule = AccessRule.model_validate({
-                "id": body.id,
-                "domain": body.domain,
-                "mode": body.mode,
-                "paths": body.paths,
-            })
+            rule = AccessRule.model_validate(
+                {
+                    "id": body.id,
+                    "domain": body.domain,
+                    "mode": body.mode,
+                    "paths": body.paths,
+                }
+            )
         except ValidationError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 

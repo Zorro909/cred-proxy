@@ -25,9 +25,7 @@ class AccessRule(BaseModel):
             try:
                 re.compile(pattern)
             except re.error as e:
-                raise ValueError(
-                    f"Invalid regex at paths[{i}] ({pattern!r}): {e}"
-                ) from e
+                raise ValueError(f"Invalid regex at paths[{i}] ({pattern!r}): {e}") from e
         return v
 
     def model_post_init(self, __context: object) -> None:

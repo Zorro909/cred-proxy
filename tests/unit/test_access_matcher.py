@@ -54,11 +54,15 @@ class TestAccessRuleMatcher:
         """AC-10.18: Two rules for overlapping domains; first one applies."""
         rules = [
             AccessRule(
-                id="specific", domain="api.github.com", mode="deny",
+                id="specific",
+                domain="api.github.com",
+                mode="deny",
                 paths=["^/admin"],
             ),
             AccessRule(
-                id="wildcard", domain="*.github.com", mode="allow",
+                id="wildcard",
+                domain="*.github.com",
+                mode="allow",
                 paths=["^/repos/"],
             ),
         ]
