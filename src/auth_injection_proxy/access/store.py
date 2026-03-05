@@ -135,7 +135,7 @@ class AccessRuleStore:
         """Rules grouped by file: {group_name: [rules]}."""
         return {name: list(g.rules) for name, g in self._groups.items()}
 
-    async def list(self) -> dict[str, list[AccessRule]]:
+    async def list_groups(self) -> dict[str, list[AccessRule]]:
         """Return rules grouped by file."""
         return self.groups
 

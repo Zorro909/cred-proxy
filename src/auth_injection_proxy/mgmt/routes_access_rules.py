@@ -59,7 +59,7 @@ def create_access_rules_router(access_store: AccessRuleStore) -> APIRouter:
 
     @router.get("")
     async def list_access_rules() -> dict:
-        groups = await access_store.list()
+        groups = await access_store.list_groups()
         return {
             "groups": {
                 name: [r.model_dump() for r in rules]
