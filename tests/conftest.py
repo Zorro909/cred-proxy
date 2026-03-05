@@ -8,6 +8,7 @@ import pytest
 from mitmproxy import http
 from mitmproxy.test import tflow
 
+from auth_injection_proxy.access.models import AccessRule
 from auth_injection_proxy.matching.models import (
     BasicAuth,
     BearerAuth,
@@ -160,3 +161,13 @@ def make_flow(
     flow = tflow.tflow()
     flow.request = http.Request.make(method, url, content)
     return flow
+
+
+def make_access_rule(
+    id: str = "r1",
+    domain: str = "api.github.com",
+    mode: str = "allow",
+    paths: list[str] | None = None,
+) -> AccessRule:
+    """Create an AccessRule for testing."""
+    return AccessRule(id=id, domain=domain, mode=mode, paths=paths or ["^/repos/"])

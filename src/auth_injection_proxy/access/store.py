@@ -141,10 +141,6 @@ class AccessRuleStore:
         """Return rules grouped by file."""
         return self.groups
 
-    async def list_flat(self) -> list[AccessRule]:
-        """Return flat list of all rules (for matcher)."""
-        return self.rules
-
     async def get(self, rule_id: str) -> tuple[str, AccessRule] | None:
         """Find a rule by ID. Returns (group_name, rule) or None."""
         for name, group in self._groups.items():
@@ -236,7 +232,7 @@ class AccessRuleStore:
         old_groups = dict(self._groups)
         try:
             return self._load()
-        except (ValueError, Exception):
+        except Exception:
             logger.exception("Reload failed, keeping previous access rules")
             self._groups = old_groups
             return self.rules

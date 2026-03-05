@@ -116,10 +116,6 @@ class AuthInjectionAddon:
 
     async def request(self, flow: http.HTTPFlow) -> None:
         # Handle agent API requests first
-        if self._agent_api and flow.request.pretty_host.startswith("__auth"):
-            # Agent API is accessed via any host with /__auth/ path
-            pass
-
         if self._agent_api:
             path = flow.request.path
             if path.startswith("/__auth/"):
