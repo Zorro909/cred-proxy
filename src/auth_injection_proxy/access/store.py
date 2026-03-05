@@ -35,22 +35,24 @@ class AccessRuleStore:
         self._load()
 
     def _load(self) -> list[AccessRule]:
-        """Load and merge rules from main file + drop-in directory."""
+        """Load and merge rules from main file + drop-in directory.
+
+        Raises ValueError on any parse error — callers (reload/watch) catch
+        this and keep the previous rules active.
+        """
         groups: dict[str, AccessRuleGroup] = {}
 
         # 1. Load main file as group "default"
         if self._main_file.exists():
             rules = self._load_file(self._main_file)
-            if rules is not None:
-                groups["default"] = AccessRuleGroup("default", self._main_file, rules)
+            groups["default"] = AccessRuleGroup("default", self._main_file, rules)
 
         # 2. Load drop-in files — group name = filename stem
         if self._drop_in_dir.is_dir():
             for f in sorted(self._drop_in_dir.glob("*.yaml")):
                 group_name = f.stem
                 rules = self._load_file(f)
-                if rules is not None:
-                    groups[group_name] = AccessRuleGroup(group_name, f, rules)
+                groups[group_name] = AccessRuleGroup(group_name, f, rules)
 
         # 3. Validate merged: no duplicate IDs, no duplicate domains
         all_rules = self._all_rules_from_groups(groups)
@@ -72,18 +74,20 @@ class AccessRuleStore:
             result.extend(group.rules)
         return result
 
-    def _load_file(self, path: Path) -> list[AccessRule] | None:
+    def _load_file(self, path: Path) -> list[AccessRule]:
         """Load access rules from a single YAML file.
-        Returns None if parsing fails (logs error, skips file)."""
+
+        Raises ValueError if parsing fails — the caller aborts the entire
+        reload so that previously active rules are not silently dropped.
+        """
         try:
             text = path.read_text()
             data = yaml.safe_load(text)
             if data is None or "access_rules" not in data:
                 return []
             return [AccessRule.model_validate(r) for r in data["access_rules"]]
-        except (yaml.YAMLError, ValidationError):
-            logger.exception("Failed to load access rules from %s, skipping", path)
-            return None
+        except (yaml.YAMLError, ValidationError) as e:
+            raise ValueError(f"Failed to load access rules from {path}: {e}") from e
 
     def _validate_merged(self, rules: list[AccessRule]) -> None:
         """Check for duplicate IDs and duplicate domains across all files."""

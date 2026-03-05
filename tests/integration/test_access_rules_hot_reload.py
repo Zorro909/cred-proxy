@@ -93,15 +93,12 @@ class TestAccessRulesHotReload:
         store = AccessRuleStore(tmp_path)
         assert len(store.rules) == 1
 
-        # Write invalid YAML — reload() now preserves previous state on error
+        # Write invalid YAML — reload aborts and keeps previous rules
         main.write_text("{{{invalid yaml")
         result = store.reload()
-        # Invalid file is skipped, but since it was the only file the merged
-        # result is valid (empty). reload() returns the new state.
-        # However, when a validation error occurs, reload() preserves previous.
-        # In this case, there's no validation error — just a skipped file.
-        # The result is an empty but valid config (0 rules).
-        assert len(result) == 0
+        assert len(result) == 1
+        assert result[0].id == "r1"
+        assert result[0].domain == "a.com"
 
     def test_duplicate_id_after_reload_keeps_previous(self, tmp_path):
         """AC-10.66: Reload that would cause duplicate IDs keeps previous rules."""

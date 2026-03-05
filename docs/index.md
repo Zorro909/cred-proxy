@@ -34,12 +34,13 @@ The proxy intercepts outbound requests from the agent container, matches them ag
 
 ## Features
 
-- **5 authentication types** — Bearer, Basic, Header, Query Parameter, OAuth2 Client Credentials
+- **6 authentication types** — Bearer, Basic, Header, Query Parameter, OAuth2 Client Credentials, External Script
+- **Access rules** — allowlist/denylist URL filtering per domain with regex path patterns
 - **Domain + path matching** — exact domains, wildcard subdomains (`*.example.com`), path prefix filtering
-- **Management API** — REST API for CRUD operations on credentials
+- **Management API** — REST API for CRUD operations on credentials and access rules
 - **Agent API** — in-band `/__auth/*` endpoints for agents to discover and request credentials
 - **Setup flow** — browser-based form for users to fill in credentials when agents request them
-- **Hot-reload** — credential file changes are picked up automatically via filesystem watching
+- **Hot-reload** — credential and access rule changes are picked up automatically via filesystem watching
 - **Response stripping** — injected secrets are removed from response bodies
 - **Secret masking** — API responses never expose full secret values
 - **Docker-first** — network isolation with separate internal (agent) and external (proxy) networks

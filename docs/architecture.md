@@ -20,11 +20,16 @@ graph TB
         Pending["PendingRequestStore"]
         OAuth2["OAuth2TokenManager"]
 
+        AccessMatcher["AccessRuleMatcher"]
+        AccessStore["AccessRuleStore\n(YAML + drop-in)"]
+
+        Addon --> AccessMatcher
         Addon --> Matcher
         Addon --> Injector
         Addon --> Stripper
         Addon --> AgentAPI
         Injector --> OAuth2
+        AccessMatcher --> AccessStore
         Matcher --> Store
         AgentAPI --> Store
         AgentAPI --> Pending
@@ -72,6 +77,10 @@ sequenceDiagram
     alt Agent API request
         Proxy->>Proxy: Handle internally (no upstream)
     else Normal request
+        Proxy->>Proxy: Check access rules
+        alt Blocked by access rule
+            Proxy-->>Agent: 403 access_denied (no credentials leaked)
+        else Allowed
         Proxy->>Matcher: Match(domain, path)
         Matcher-->>Proxy: CredentialRule (or none)
 
@@ -89,6 +98,7 @@ sequenceDiagram
         end
 
         Proxy-->>Agent: Response (secrets removed)
+        end
     end
 ```
 
@@ -124,6 +134,7 @@ graph LR
 - **Management API masking** — the `/api/credentials` endpoint masks secret values (e.g., `sk-***789`) so even management clients don't see full secrets
 - **Network isolation** — the agent network has no direct internet access
 - **Single-use setup tokens** — credential request tokens are single-use, TTL-bounded, and rate-limited
+- **Access rules** — blocked requests are rejected before credential injection, preventing secret leakage to unauthorized paths
 - **CA certificates** — HTTPS interception uses mitmproxy's generated CA, shared via Docker volume
 
 ## Module Map
@@ -141,6 +152,9 @@ graph LR
 | `injection/query_param.py` | Query parameter injection |
 | `injection/oauth2.py` | OAuth2 client credentials flow + token caching |
 | `stripping/response_strip.py` | Removes injected secrets from response bodies |
+| `access/models.py` | Pydantic model for access rules (allowlist/denylist) |
+| `access/matcher.py` | Domain/path matching for access rules |
+| `access/store.py` | YAML-backed access rule store with group support and hot-reload |
 | `store/interface.py` | Abstract `CredentialStore` interface |
 | `store/yaml_store.py` | YAML-backed credential store with atomic writes and hot-reload |
 | `store/masking.py` | Secret value masking for API responses |
@@ -149,6 +163,7 @@ graph LR
 | `mgmt/app.py` | FastAPI application factory |
 | `mgmt/routes_credentials.py` | CRUD routes for `/api/credentials` |
 | `mgmt/routes_setup.py` | Setup flow routes (`/setup/{token}`) |
+| `mgmt/routes_access_rules.py` | CRUD routes for `/api/access-rules` |
 | `mgmt/routes_status.py` | Status endpoint (`/api/status`) |
 | `logging.py` | Logging configuration with secret masking filter |
 

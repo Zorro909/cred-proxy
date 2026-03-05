@@ -44,6 +44,10 @@ GET http://any-host/__auth/request/{token}/status
 
 Poll until `status` is `"fulfilled"` or `"expired"`.
 
+## Access Rules
+
+The proxy may enforce access rules that restrict which URL paths you can access on certain domains. If a request is blocked by an access rule, you'll receive a `403` response with `"error": "access_denied"`. This means the domain is configured but your requested path is not permitted. You cannot override access rules — they are set by the operator.
+
 ## Reference
 
 See [API-REFERENCE.md](API-REFERENCE.md) for full `/__auth/*` endpoint details including request/response schemas and error codes.

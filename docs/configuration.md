@@ -233,6 +233,67 @@ cred-proxy watches the credentials YAML file for changes using filesystem events
 
 Changes take effect within seconds. Invalid configs are logged and rejected without affecting the running configuration.
 
+## Access Rules
+
+Access rules control which URL paths agents can access through the proxy on a per-domain basis. Rules use either an allowlist (deny by default) or a denylist (allow by default) with regex path patterns.
+
+Access rules are stored separately from credentials:
+
+- `access-rules.yaml` — main file ("default" group)
+- `access-rules.d/*.yaml` — drop-in directory, one file per group (like systemd `.d/` directories)
+
+Both files live in the same directory as `config.yaml`.
+
+### Access Rule Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | yes | Unique identifier for this rule |
+| `domain` | string | yes | Domain to match (exact or wildcard) |
+| `mode` | string | yes | `allow` (allowlist — deny by default) or `deny` (denylist — allow by default) |
+| `paths` | list[string] | no | Regex patterns to match against the request path (default: `[]`) |
+
+### Mode Behavior
+
+- **`allow` mode** (allowlist): all paths are blocked by default. Only paths matching a pattern in `paths` are permitted.
+- **`deny` mode** (denylist): all paths are allowed by default. Only paths matching a pattern in `paths` are blocked.
+- **Empty `paths`**: in `allow` mode, blocks everything; in `deny` mode, blocks nothing.
+- **No rule for a domain**: all requests pass through (no access control applied).
+
+### Example
+
+`access-rules.yaml`:
+
+```yaml
+access_rules:
+  - id: openai-denylist
+    domain: api.openai.com
+    mode: deny
+    paths:
+      - "^/v1/files"
+      - "^/v1/fine_tuning"
+```
+
+`access-rules.d/github.yaml`:
+
+```yaml
+access_rules:
+  - id: github-allowlist
+    domain: api.github.com
+    mode: allow
+    paths:
+      - "^/repos/"
+      - "^/user$"
+```
+
+### Path Matching
+
+Paths are matched using Python regular expressions (`re.search`). The regex is tested against the request path (without query string). Use `^` to anchor to the start of the path.
+
+### Access Rules Hot-Reload
+
+Access rules support the same hot-reload behavior as credentials — both the main file and the drop-in directory are watched for changes. If any file fails to parse, the entire reload is aborted and the previous rules remain active. This prevents accidentally dropping active rules due to a typo in one file.
+
 ## Complete Example
 
 ```yaml

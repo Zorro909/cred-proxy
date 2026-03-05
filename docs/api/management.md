@@ -15,9 +15,13 @@ Returns proxy health and credential counts.
   "status": "ok",
   "uptime_seconds": 123.4,
   "total_rules": 5,
-  "enabled_rules": 4
+  "enabled_rules": 4,
+  "total_access_rules": 3,
+  "access_rule_groups": 2
 }
 ```
+
+The `total_access_rules` and `access_rule_groups` fields are included when access rules are configured.
 
 **Example:**
 
@@ -229,3 +233,127 @@ All credential API responses mask secret values to prevent accidental exposure:
 | OAuth2 | `client_id`, `token_url`, `scopes` | `client_secret` → `se-***ret` |
 
 The masking format keeps the last 3 characters visible and preserves any prefix before the first separator (`-`, `_`, `.`).
+
+## Access Rules
+
+CRUD endpoints for managing URL access rules. See [Configuration — Access Rules](../configuration.md#access-rules) for the config file format.
+
+### `GET /api/access-rules`
+
+List all access rules, grouped by file.
+
+**Response:** `200 OK`
+
+```json
+{
+  "groups": {
+    "default": [
+      {
+        "id": "openai-denylist",
+        "domain": "api.openai.com",
+        "mode": "deny",
+        "paths": ["^/v1/files", "^/v1/fine_tuning"]
+      }
+    ],
+    "github": [
+      {
+        "id": "github-allowlist",
+        "domain": "api.github.com",
+        "mode": "allow",
+        "paths": ["^/repos/", "^/user$"]
+      }
+    ]
+  }
+}
+```
+
+### `GET /api/access-rules/{rule_id}`
+
+Get a single access rule with its group.
+
+**Response:** `200 OK`
+
+```json
+{
+  "group": "github",
+  "rule": {
+    "id": "github-allowlist",
+    "domain": "api.github.com",
+    "mode": "allow",
+    "paths": ["^/repos/", "^/user$"]
+  }
+}
+```
+
+**Errors:**
+
+| Status | Reason |
+|--------|--------|
+| `404` | Rule not found |
+
+### `POST /api/access-rules`
+
+Create a new access rule.
+
+**Request body:**
+
+```json
+{
+  "id": "slack-allowlist",
+  "domain": "slack.com",
+  "mode": "allow",
+  "paths": ["^/api/chat\\.postMessage"],
+  "group": "slack"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | yes | Unique rule identifier |
+| `domain` | string | yes | Domain to match |
+| `mode` | `"allow"` / `"deny"` | yes | Access control mode |
+| `paths` | list[string] | no | Regex path patterns (default: `[]`) |
+| `group` | string | no | File group name (default: `"default"`) |
+
+**Response:** `201 Created`
+
+**Errors:**
+
+| Status | Reason |
+|--------|--------|
+| `400` | Invalid group name |
+| `409` | Duplicate ID or domain |
+| `422` | Invalid mode or regex pattern |
+
+### `PUT /api/access-rules/{rule_id}`
+
+Update an existing access rule. Only provided fields are changed. The `id` cannot be changed.
+
+**Request body** (all fields optional):
+
+```json
+{
+  "mode": "deny",
+  "paths": ["^/admin"]
+}
+```
+
+**Response:** `200 OK`
+
+**Errors:**
+
+| Status | Reason |
+|--------|--------|
+| `404` | Rule not found |
+
+### `DELETE /api/access-rules/{rule_id}`
+
+Delete an access rule. If this was the last rule in its group file, the file is deleted.
+
+**Response:** `204 No Content`
+
+**Errors:**
+
+| Status | Reason |
+|--------|--------|
+| `404` | Rule not found |
