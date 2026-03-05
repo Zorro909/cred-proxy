@@ -54,3 +54,16 @@ credentials:
   #     scopes:
   #       - "read"
   #       - "write"
+
+  # External script example (e.g. GitHub App installation token)
+  # - id: "github-app"
+  #   domain: "api.github.com"
+  #   enabled: true
+  #   auth:
+  #     type: external_script
+  #     script: "./scripts/github-app-token.sh"
+  #     env:
+  #       GITHUB_APP_ID: "12345"
+  #       GITHUB_PRIVATE_KEY_PATH: "/path/to/key.pem"
+  #       GITHUB_INSTALLATION_ID: "67890"
+  #     refresh_interval: 600

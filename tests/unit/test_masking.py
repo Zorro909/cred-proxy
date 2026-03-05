@@ -4,6 +4,7 @@ from auth_injection_proxy.matching.models import (
     BasicAuth,
     BearerAuth,
     CredentialRule,
+    ExternalScriptAuth,
     HeaderAuth,
     OAuth2ClientCredentialsAuth,
     QueryParamAuth,
@@ -85,3 +86,31 @@ class TestMaskRule:
         masked = mask_rule(rule)
         assert masked["auth"]["param_name"] == "key"
         assert "***" in masked["auth"]["param_value"]
+
+    def test_external_script_env_masked(self):
+        """External script env values masked."""
+        rule = CredentialRule(
+            id="r1",
+            domain="d.com",
+            auth=ExternalScriptAuth(
+                type="external_script",
+                script="./token.sh",
+                env={"API_KEY": "secret-key", "APP_ID": "12345"},
+            ),
+        )
+        masked = mask_rule(rule)
+        assert masked["auth"]["script"] == "./token.sh"
+        assert masked["auth"]["env"] == {"API_KEY": "***", "APP_ID": "***"}
+
+    def test_external_script_empty_env(self):
+        """External script with no env → empty dict preserved."""
+        rule = CredentialRule(
+            id="r1",
+            domain="d.com",
+            auth=ExternalScriptAuth(
+                type="external_script",
+                script="./token.sh",
+            ),
+        )
+        masked = mask_rule(rule)
+        assert masked["auth"]["env"] == {}

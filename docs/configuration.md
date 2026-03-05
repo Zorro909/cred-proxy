@@ -176,6 +176,52 @@ Obtains an access token from an OAuth2 token endpoint using the client credentia
     | `client_secret` | string | Client secret |
     | `scopes` | list[string] | OAuth2 scopes (optional, default: `[]`) |
 
+### External Script
+
+Delegates credential acquisition to any executable script. The script outputs JSON with headers to inject. This enables GitHub App tokens, custom vault integrations, and any other bespoke credential rotation.
+
+=== "YAML"
+
+    ```yaml
+    auth:
+      type: external_script
+      script: "./scripts/github-app-token.sh"
+      env:
+        GITHUB_APP_ID: "12345"
+        GITHUB_PRIVATE_KEY_PATH: "/path/to/key.pem"
+        GITHUB_INSTALLATION_ID: "67890"
+      refresh_interval: 600
+    ```
+
+=== "Fields"
+
+    | Field | Type | Description |
+    |-------|------|-------------|
+    | `type` | `"external_script"` | Auth type discriminator |
+    | `script` | string | Path to executable, resolved relative to config file directory |
+    | `env` | dict[string, string] | Environment variables passed to the script (optional, default: `{}`) |
+    | `refresh_interval` | int | Seconds between re-runs (optional, default: `3600`) |
+
+**Script contract:**
+
+The script receives configured `env` vars and must output JSON to stdout:
+
+```json
+{
+  "headers": {
+    "Authorization": "Bearer ghp_abc123",
+    "X-Custom": "value"
+  },
+  "refresh_in": 300
+}
+```
+
+- `headers` (required): Dict of header-name → header-value to inject into proxied requests
+- `refresh_in` (optional): Override `refresh_interval` for this specific result
+- Non-zero exit code = failure (logged, request passes through unauthenticated, stale cache evicted)
+- Stderr is logged but otherwise ignored
+- Script execution timeout: 30 seconds
+
 ## Hot-Reload
 
 cred-proxy watches the credentials YAML file for changes using filesystem events (via [watchfiles](https://watchfiles.helpmanual.io/)). When the file is modified:

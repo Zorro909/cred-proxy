@@ -38,6 +38,13 @@ class OAuth2ClientCredentialsAuth(BaseModel):
     scopes: list[str] = Field(default_factory=list)
 
 
+class ExternalScriptAuth(BaseModel):
+    type: Literal["external_script"]
+    script: str
+    env: dict[str, str] = Field(default_factory=dict)
+    refresh_interval: int = 3600
+
+
 AuthConfig = Annotated[
     Union[  # noqa: UP007 — required for Pydantic discriminator
         BearerAuth,
@@ -45,6 +52,7 @@ AuthConfig = Annotated[
         HeaderAuth,
         QueryParamAuth,
         OAuth2ClientCredentialsAuth,
+        ExternalScriptAuth,
     ],
     Field(discriminator="type"),
 ]

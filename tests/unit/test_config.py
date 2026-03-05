@@ -80,3 +80,43 @@ class TestLoadConfig:
         config = load_config(str(path))
         assert config.proxy.listen_port == 8080
         assert config.credentials == []
+
+    def test_external_script_auth_type(self, tmp_path):
+        """external_script auth type parses correctly."""
+        path = tmp_path / "config.yaml"
+        path.write_text("""credentials:
+  - id: "github-app"
+    domain: "api.github.com"
+    auth:
+      type: external_script
+      script: "./scripts/github-app-token.sh"
+      env:
+        GITHUB_APP_ID: "12345"
+        GITHUB_PRIVATE_KEY_PATH: "/path/to/key.pem"
+      refresh_interval: 600
+""")
+        config = load_config(str(path))
+        assert len(config.credentials) == 1
+        rule = config.credentials[0]
+        assert rule.auth.type == "external_script"
+        assert rule.auth.script == "./scripts/github-app-token.sh"
+        assert rule.auth.env == {
+            "GITHUB_APP_ID": "12345",
+            "GITHUB_PRIVATE_KEY_PATH": "/path/to/key.pem",
+        }
+        assert rule.auth.refresh_interval == 600
+
+    def test_external_script_defaults(self, tmp_path):
+        """external_script defaults: empty env, 3600 refresh."""
+        path = tmp_path / "config.yaml"
+        path.write_text("""credentials:
+  - id: "simple"
+    domain: "api.example.com"
+    auth:
+      type: external_script
+      script: "./token.sh"
+""")
+        config = load_config(str(path))
+        rule = config.credentials[0]
+        assert rule.auth.env == {}
+        assert rule.auth.refresh_interval == 3600
