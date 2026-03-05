@@ -9,7 +9,6 @@ from urllib.parse import urlparse
 
 from mitmproxy import http
 
-from auth_injection_proxy.access.store import AccessRuleStore
 from auth_injection_proxy.requests.pending import PendingRequestStore
 from auth_injection_proxy.store.interface import CredentialStore
 
@@ -27,12 +26,10 @@ class AgentApiHandler:
         store: CredentialStore,
         pending: PendingRequestStore,
         mgmt_port: int = 8081,
-        access_store: AccessRuleStore | None = None,
     ) -> None:
         self._store = store
         self._pending = pending
         self._mgmt_port = mgmt_port
-        self._access_store = access_store
 
     async def handle(self, flow: http.HTTPFlow) -> bool:
         """Handle /__auth/* requests. Returns True if handled, False otherwise."""
@@ -42,8 +39,6 @@ class AgentApiHandler:
 
         if path == "/__auth/credentials":
             await self._handle_list_credentials(flow)
-        elif path == "/__auth/access-rules":
-            self._handle_list_access_rules(flow)
         elif path == "/__auth/request" and flow.request.method == "POST":
             self._handle_create_request(flow)
         elif path.startswith("/__auth/request/") and path.endswith("/status"):
@@ -52,26 +47,6 @@ class AgentApiHandler:
             _respond_json(flow, 404, {"error": "Not found"})
 
         return True
-
-    def _handle_list_access_rules(self, flow: http.HTTPFlow) -> None:
-        if self._access_store is None:
-            _respond_json(flow, 200, [])
-            return
-
-        rules = self._access_store.rules
-        domain_filter = flow.request.query.get("domain")
-
-        result = []
-        for rule in rules:
-            if domain_filter and domain_filter.lower() not in rule.domain.lower():
-                continue
-            result.append({
-                "domain": rule.domain,
-                "mode": rule.mode,
-                "paths": rule.paths,
-            })
-
-        _respond_json(flow, 200, result)
 
     async def _handle_list_credentials(self, flow: http.HTTPFlow) -> None:
         rules = await self._store.list()
