@@ -12,17 +12,6 @@ class AccessRuleMatcher:
     def update_rules(self, rules: list[AccessRule]) -> None:
         self._rules = rules
 
-    def is_allowed(self, host: str, path: str) -> bool:
-        """Check if a request to host+path is permitted.
-
-        Returns True if allowed, False if blocked.
-        If no access rule matches the domain, the request is allowed (default-open).
-        """
-        rule = self._find_rule(host)
-        if rule is None:
-            return True  # no access rule for this domain -> allow
-        return rule.is_allowed(path)
-
     def get_rule_for_host(self, host: str) -> AccessRule | None:
         """Return the access rule matching this host, or None."""
         return self._find_rule(host)

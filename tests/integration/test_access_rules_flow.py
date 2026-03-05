@@ -3,40 +3,38 @@
 import json
 
 from auth_injection_proxy.access.matcher import AccessRuleMatcher
-from auth_injection_proxy.access.models import AccessRule
 from auth_injection_proxy.injection.external_script import ExternalScriptManager
 from auth_injection_proxy.injection.injector import inject_auth
 from auth_injection_proxy.injection.oauth2 import OAuth2TokenManager
 from auth_injection_proxy.matching.models import BearerAuth, CredentialRule
 from auth_injection_proxy.matching.rules import RuleMatcher
-from tests.conftest import make_flow
+from tests.conftest import make_access_rule, make_flow
 
 
-def _access_rule(
-    id: str = "r1",
-    domain: str = "api.github.com",
-    mode: str = "allow",
-    paths: list[str] | None = None,
-) -> AccessRule:
-    return AccessRule(id=id, domain=domain, mode=mode, paths=paths or ["^/repos/"])
+def _check_allowed(matcher: AccessRuleMatcher, host: str, path: str) -> bool:
+    """Check if host+path is allowed: no rule = allowed, otherwise delegate to rule."""
+    rule = matcher.get_rule_for_host(host)
+    if rule is None:
+        return True
+    return rule.is_allowed(path)
 
 
 class TestAccessRulesFlow:
     async def test_allowed_request_passes_through(self):
         """AC-10.35: Request matching an allowlist pattern is proxied normally."""
-        matcher = AccessRuleMatcher([_access_rule()])
-        assert matcher.is_allowed("api.github.com", "/repos/foo") is True
+        matcher = AccessRuleMatcher([make_access_rule()])
+        assert _check_allowed(matcher, "api.github.com", "/repos/foo") is True
 
     async def test_blocked_request_returns_403(self):
         """AC-10.36: Request blocked by allowlist returns 403 JSON response."""
         from mitmproxy import http
 
-        matcher = AccessRuleMatcher([_access_rule()])
+        matcher = AccessRuleMatcher([make_access_rule()])
         flow = make_flow("https://api.github.com/gists/123")
         host = flow.request.pretty_host
         path = flow.request.path.split("?")[0]
 
-        if not matcher.is_allowed(host, path):
+        if not _check_allowed(matcher, host, path):
             flow.response = http.Response.make(
                 403,
                 json.dumps(
@@ -56,12 +54,12 @@ class TestAccessRulesFlow:
         """AC-10.37: 403 body contains error, message, and proxy fields."""
         from mitmproxy import http
 
-        matcher = AccessRuleMatcher([_access_rule()])
+        matcher = AccessRuleMatcher([make_access_rule()])
         flow = make_flow("https://api.github.com/gists/123")
         host = flow.request.pretty_host
         path = flow.request.path.split("?")[0]
 
-        if not matcher.is_allowed(host, path):
+        if not _check_allowed(matcher, host, path):
             flow.response = http.Response.make(
                 403,
                 json.dumps(
@@ -81,24 +79,24 @@ class TestAccessRulesFlow:
 
     async def test_denylist_blocks_matching(self):
         """AC-10.38: Request matching a denylist pattern returns 403."""
-        rule = _access_rule(mode="deny", paths=["^/v1/files"])
+        rule = make_access_rule(mode="deny", paths=["^/v1/files"])
         matcher = AccessRuleMatcher([rule])
-        assert matcher.is_allowed("api.github.com", "/v1/files/upload") is False
+        assert _check_allowed(matcher, "api.github.com", "/v1/files/upload") is False
 
     async def test_denylist_allows_non_matching(self):
         """AC-10.39: Request not matching any denylist pattern is proxied."""
-        rule = _access_rule(mode="deny", paths=["^/v1/files"])
+        rule = make_access_rule(mode="deny", paths=["^/v1/files"])
         matcher = AccessRuleMatcher([rule])
-        assert matcher.is_allowed("api.github.com", "/v1/chat") is True
+        assert _check_allowed(matcher, "api.github.com", "/v1/chat") is True
 
     async def test_no_access_rule_allows_all(self):
         """AC-10.40: Domain with no access rule passes through (backwards-compat)."""
-        matcher = AccessRuleMatcher([_access_rule(domain="api.github.com")])
-        assert matcher.is_allowed("httpbin.org", "/anything") is True
+        matcher = AccessRuleMatcher([make_access_rule(domain="api.github.com")])
+        assert _check_allowed(matcher, "httpbin.org", "/anything") is True
 
     async def test_blocked_request_no_credential_injection(self):
         """AC-10.41: Blocked request never reaches credential injection."""
-        access_matcher = AccessRuleMatcher([_access_rule()])
+        access_matcher = AccessRuleMatcher([make_access_rule()])
         cred_rules = [
             CredentialRule(
                 id="gh",
@@ -113,9 +111,7 @@ class TestAccessRulesFlow:
         path = flow.request.path.split("?")[0]
 
         # Access check happens before credential injection
-        if not access_matcher.is_allowed(host, path):
-            pass  # Would return 403, no injection
-        else:
+        if _check_allowed(access_matcher, host, path):
             rule = cred_matcher.match(host, flow.request.path)
             if rule:
                 await inject_auth(flow, rule, OAuth2TokenManager(), ExternalScriptManager(), ".")
@@ -125,7 +121,7 @@ class TestAccessRulesFlow:
 
     async def test_allowed_request_with_credentials(self):
         """AC-10.42: Allowed request still gets credentials injected."""
-        access_matcher = AccessRuleMatcher([_access_rule()])
+        access_matcher = AccessRuleMatcher([make_access_rule()])
         cred_rules = [
             CredentialRule(
                 id="gh",
@@ -139,7 +135,7 @@ class TestAccessRulesFlow:
         host = flow.request.pretty_host
         path = flow.request.path.split("?")[0]
 
-        if access_matcher.is_allowed(host, path):
+        if _check_allowed(access_matcher, host, path):
             rule = cred_matcher.match(host, flow.request.path)
             if rule:
                 await inject_auth(flow, rule, OAuth2TokenManager(), ExternalScriptManager(), ".")
@@ -153,7 +149,7 @@ class TestAccessRulesFlow:
         # but the addon handles /__auth/ first.
         matcher = AccessRuleMatcher(
             [
-                _access_rule(mode="allow", paths=[]),  # block everything
+                make_access_rule(mode="allow", paths=[]),  # block everything
             ]
         )
 
@@ -164,6 +160,8 @@ class TestAccessRulesFlow:
 
         # Even though access rules would block, __auth is exempt
         assert is_auth_path is True
-        assert matcher.is_allowed("api.github.com", path) is False
+        rule = matcher.get_rule_for_host("api.github.com")
+        assert rule is not None
+        assert rule.is_allowed(path) is False
         # In the actual addon, this flow would be handled and returned
         # before access rules are checked
