@@ -29,7 +29,7 @@ def create_status_router(
             "enabled_rules": enabled_count,
         }
         if access_store is not None:
-            access_groups = await access_store.list()
+            access_groups = await access_store.list_groups()
             total_access = sum(len(r) for r in access_groups.values())
             result["total_access_rules"] = total_access
             result["access_rule_groups"] = len(access_groups)
