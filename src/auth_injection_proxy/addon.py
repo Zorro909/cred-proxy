@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import threading
 from pathlib import Path
@@ -11,6 +12,8 @@ from typing import Any
 import uvicorn
 from mitmproxy import ctx, http
 
+from auth_injection_proxy.access.matcher import AccessRuleMatcher
+from auth_injection_proxy.access.store import AccessRuleStore
 from auth_injection_proxy.agent_api.handlers import AgentApiHandler
 from auth_injection_proxy.config import AppConfig, load_config
 from auth_injection_proxy.injection.external_script import ExternalScriptManager
@@ -31,16 +34,19 @@ class AuthInjectionAddon:
 
     def __init__(self) -> None:
         self._matcher = RuleMatcher()
+        self._access_matcher = AccessRuleMatcher()
         self._oauth2 = OAuth2TokenManager()
         self._external_script = ExternalScriptManager()
         self._config_dir: str = "."
         self._store: YamlCredentialStore | None = None
+        self._access_store: AccessRuleStore | None = None
         self._pending: PendingRequestStore | None = None
         self._agent_api: AgentApiHandler | None = None
         self._config: AppConfig | None = None
         self._injected_secrets: dict[int, list[str]] = {}
         self._mgmt_thread: threading.Thread | None = None
         self._watcher_task: asyncio.Task[None] | None = None
+        self._access_watcher_task: asyncio.Task[None] | None = None
 
     def load(self, loader: Any) -> None:
         loader.add_option(
@@ -67,6 +73,9 @@ class AuthInjectionAddon:
         self._store = YamlCredentialStore(config_path)
         self._matcher.update_rules(list(self._store._rules))
 
+        self._access_store = AccessRuleStore(self._config_dir)
+        self._access_matcher.update_rules(self._access_store.rules)
+
         self._pending = PendingRequestStore(
             default_ttl=self._config.proxy.credential_request_ttl,
         )
@@ -74,6 +83,7 @@ class AuthInjectionAddon:
             store=self._store,
             pending=self._pending,
             mgmt_port=self._config.proxy.mgmt_port,
+            access_store=self._access_store,
         )
 
         # Start management API in daemon thread
@@ -86,16 +96,24 @@ class AuthInjectionAddon:
         )
 
     def running(self) -> None:
-        """Called when mitmproxy is fully started. Start file watcher."""
+        """Called when mitmproxy is fully started. Start file watchers."""
+        loop = asyncio.get_event_loop()
         if self._store:
-            loop = asyncio.get_event_loop()
             self._watcher_task = loop.create_task(self._store.watch(self._on_rules_changed))
+        if self._access_store:
+            self._access_watcher_task = loop.create_task(
+                self._access_store.watch(self._on_access_rules_changed)
+            )
 
     def _on_rules_changed(self, rules: list) -> None:
         self._matcher.update_rules(rules)
         self._oauth2.clear()
         self._external_script.clear()
-        logger.info("Rules reloaded: %d rules active", len(rules))
+        logger.info("Rules reloaded: %d credential rules active", len(rules))
+
+    def _on_access_rules_changed(self, rules: list) -> None:
+        self._access_matcher.update_rules(rules)
+        logger.info("Access rules reloaded: %d rules", len(rules))
 
     async def request(self, flow: http.HTTPFlow) -> None:
         # Handle agent API requests first
@@ -110,8 +128,39 @@ class AuthInjectionAddon:
                 if handled:
                     return
 
-        # Match against rules
+        # Check access rules (before credential injection)
         host = flow.request.pretty_host
+        clean_path = flow.request.path.split("?")[0]
+        access_rule = self._access_matcher.get_rule_for_host(host)
+        if access_rule is not None:
+            if not access_rule.is_allowed(clean_path):
+                flow.response = http.Response.make(
+                    403,
+                    json.dumps({
+                        "error": "access_denied",
+                        "message": (
+                            f"Request to {host}{clean_path} is blocked by access rules"
+                        ),
+                        "proxy": "cred-proxy",
+                    }).encode(),
+                    {"Content-Type": "application/json"},
+                )
+                logger.warning(
+                    "BLOCKED %s %s%s by access rule",
+                    flow.request.method,
+                    host,
+                    clean_path,
+                )
+                return
+            logger.debug(
+                "ACCESS %s %s%s → allowed by rule for %s",
+                flow.request.method,
+                host,
+                clean_path,
+                access_rule.domain,
+            )
+
+        # Match against rules
         path = flow.request.path
         rule = self._matcher.match(host, path)
 
@@ -160,11 +209,13 @@ class AuthInjectionAddon:
     def done(self) -> None:
         if self._watcher_task:
             self._watcher_task.cancel()
+        if self._access_watcher_task:
+            self._access_watcher_task.cancel()
 
     def _start_mgmt_api(self, port: int) -> None:
         if self._store is None or self._pending is None:
             return
-        app = create_app(self._store, self._pending)
+        app = create_app(self._store, self._pending, self._access_store)
 
         def _run_mgmt() -> None:
             loop = asyncio.new_event_loop()

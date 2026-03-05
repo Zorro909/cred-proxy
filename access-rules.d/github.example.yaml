@@ -1,0 +1,14 @@
+# access-rules.d/github.yaml
+# Allowlist for GitHub API — only permit repository and user endpoints.
+# This file is loaded automatically by cred-proxy.
+
+access_rules:
+  - id: "github-allowlist"
+    domain: "api.github.com"
+    mode: "allow"
+    paths:
+      - "^/repos/"
+      - "^/user$"
+      - "^/orgs/"
+      - "^/search/"
+      - "^/rate_limit$"

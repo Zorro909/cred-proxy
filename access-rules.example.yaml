@@ -1,0 +1,33 @@
+# Access rules — control which URLs agents can reach through cred-proxy.
+#
+# Each domain gets at most one access rule (allowlist OR denylist).
+# Domains with no access rule are unrestricted (backwards-compatible).
+#
+# You can also split rules into individual files under access-rules.d/
+# (e.g., access-rules.d/github.yaml). Files are loaded in sorted order.
+
+access_rules:
+  # Allowlist: only permit specific GitHub API paths
+  - id: "github-allowlist"
+    domain: "api.github.com"
+    mode: "allow"
+    paths:
+      - "^/repos/"
+      - "^/user$"
+      - "^/orgs/"
+      - "^/search/"
+
+  # Denylist: block specific OpenAI endpoints
+  - id: "openai-denylist"
+    domain: "api.openai.com"
+    mode: "deny"
+    paths:
+      - "^/v1/files"          # block file uploads
+      - "^/v1/fine_tuning"    # block fine-tuning
+      - "^/v1/assistants"     # block assistants API
+
+  # Block all traffic to internal services
+  # - id: "internal-block-all"
+  #   domain: "*.internal.corp"
+  #   mode: "allow"
+  #   paths: []  # empty allowlist = block everything

@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from auth_injection_proxy.access.store import AccessRuleStore
 from auth_injection_proxy.agent_api.handlers import AgentApiHandler
 from auth_injection_proxy.matching.models import BearerAuth, CredentialRule, HeaderAuth
 from auth_injection_proxy.requests.pending import PendingRequestStore
@@ -281,3 +282,52 @@ class TestStatusPolling:
         flow.request.path = "/__auth/request/fakefake/status"
         await handler.handle(flow)
         assert flow.response.status_code == 404
+
+
+class TestAccessRulesAgent:
+    @pytest.fixture
+    def handler_with_access(self, tmp_path):
+        main = tmp_path / "access-rules.yaml"
+        main.write_text("""access_rules:
+  - id: gh-allow
+    domain: api.github.com
+    mode: allow
+    paths:
+      - "^/repos/"
+      - "^/user$"
+  - id: oai-deny
+    domain: api.openai.com
+    mode: deny
+    paths:
+      - "^/v1/files"
+""")
+        access_store = AccessRuleStore(tmp_path)
+        store = MockCredentialStore()
+        pending = PendingRequestStore()
+        return AgentApiHandler(
+            store=store, pending=pending, mgmt_port=8081,
+            access_store=access_store,
+        )
+
+    async def test_list_access_rules_agent(self, handler_with_access):
+        """AC-10.59: /__auth/access-rules returns flat list (no IDs or groups)."""
+        flow = make_flow("http://proxy/__auth/access-rules")
+        flow.request.path = "/__auth/access-rules"
+        await handler_with_access.handle(flow)
+
+        data = json.loads(flow.response.get_text())
+        assert len(data) == 2
+        for item in data:
+            assert set(item.keys()) == {"domain", "mode", "paths"}
+            assert "id" not in item
+
+    async def test_list_access_rules_domain_filter(self, handler_with_access):
+        """AC-10.60: /__auth/access-rules?domain=github filters correctly."""
+        flow = make_flow("http://proxy/__auth/access-rules?domain=github")
+        flow.request.path = "/__auth/access-rules"
+        flow.request.query["domain"] = "github"
+        await handler_with_access.handle(flow)
+
+        data = json.loads(flow.response.get_text())
+        assert len(data) == 1
+        assert data[0]["domain"] == "api.github.com"
