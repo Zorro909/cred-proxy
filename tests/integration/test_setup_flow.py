@@ -48,7 +48,7 @@ class TestSetupFlow:
         # Verify rule was created in store
         import asyncio
 
-        rules = asyncio.get_event_loop().run_until_complete(store.list())
+        rules = asyncio.run(store.list())
         assert len(rules) == 1
         assert rules[0].domain == "api.example.com"
 
