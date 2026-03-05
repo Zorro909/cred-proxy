@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+from pathlib import Path
 from typing import Any
 
 import uvicorn
@@ -12,6 +13,7 @@ from mitmproxy import ctx, http
 
 from auth_injection_proxy.agent_api.handlers import AgentApiHandler
 from auth_injection_proxy.config import AppConfig, load_config
+from auth_injection_proxy.injection.external_script import ExternalScriptManager
 from auth_injection_proxy.injection.injector import inject_auth
 from auth_injection_proxy.injection.oauth2 import OAuth2TokenManager
 from auth_injection_proxy.logging import setup_logging
@@ -30,6 +32,8 @@ class AuthInjectionAddon:
     def __init__(self) -> None:
         self._matcher = RuleMatcher()
         self._oauth2 = OAuth2TokenManager()
+        self._external_script = ExternalScriptManager()
+        self._config_dir: str = "."
         self._store: YamlCredentialStore | None = None
         self._pending: PendingRequestStore | None = None
         self._agent_api: AgentApiHandler | None = None
@@ -51,6 +55,7 @@ class AuthInjectionAddon:
             return
 
         config_path = ctx.options.config_path
+        self._config_dir = str(Path(config_path).resolve().parent)
         setup_logging()
 
         try:
@@ -89,6 +94,7 @@ class AuthInjectionAddon:
     def _on_rules_changed(self, rules: list) -> None:
         self._matcher.update_rules(rules)
         self._oauth2.clear()
+        self._external_script.clear()
         logger.info("Rules reloaded: %d rules active", len(rules))
 
     async def request(self, flow: http.HTTPFlow) -> None:
@@ -119,7 +125,9 @@ class AuthInjectionAddon:
             return
 
         # Inject auth
-        secrets_list = await inject_auth(flow, rule, self._oauth2)
+        secrets_list = await inject_auth(
+            flow, rule, self._oauth2, self._external_script, self._config_dir
+        )
         if secrets_list:
             self._injected_secrets[id(flow)] = secrets_list
 

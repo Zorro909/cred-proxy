@@ -2,6 +2,7 @@
 
 from mitmproxy import http
 
+from auth_injection_proxy.injection.external_script import ExternalScriptManager
 from auth_injection_proxy.injection.injector import inject_auth
 from auth_injection_proxy.injection.oauth2 import OAuth2TokenManager
 from auth_injection_proxy.matching.models import (
@@ -34,7 +35,7 @@ class TestFullRequestCycle:
         rule = matcher.match("api.openai.com", "/v1/chat")
         assert rule is not None
 
-        secrets = await inject_auth(flow, rule, oauth2)
+        secrets = await inject_auth(flow, rule, oauth2, ExternalScriptManager(), ".")
         assert flow.request.headers["Authorization"] == "Bearer sk-secret-123"
 
         # Simulate upstream echoing the secret
@@ -73,7 +74,7 @@ class TestFullRequestCycle:
         rule = matcher.match("jira.example.com", "/api/issues")
         assert rule is not None
 
-        secrets = await inject_auth(flow, rule, oauth2)
+        secrets = await inject_auth(flow, rule, oauth2, ExternalScriptManager(), ".")
         assert "Basic" in flow.request.headers["Authorization"]
         assert len(secrets) > 0
 
@@ -90,7 +91,7 @@ class TestFullRequestCycle:
 
         flow = make_flow("https://api.example.com/data")
         rule = matcher.match("api.example.com", "/data")
-        secrets = await inject_auth(flow, rule, oauth2)
+        secrets = await inject_auth(flow, rule, oauth2, ExternalScriptManager(), ".")
         assert flow.request.headers["X-API-Key"] == "key123"
 
         flow.response = http.Response.make(200, b"echoed key123 back")
@@ -110,7 +111,7 @@ class TestFullRequestCycle:
 
         flow = make_flow("https://legacy.example.com/api?page=1")
         rule = matcher.match("legacy.example.com", "/api")
-        secrets = await inject_auth(flow, rule, oauth2)
+        secrets = await inject_auth(flow, rule, oauth2, ExternalScriptManager(), ".")
         assert flow.request.query["api_key"] == "secret"
         assert flow.request.query["page"] == "1"
 

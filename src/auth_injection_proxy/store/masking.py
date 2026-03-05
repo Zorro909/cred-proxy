@@ -6,6 +6,7 @@ from auth_injection_proxy.matching.models import (
     BasicAuth,
     BearerAuth,
     CredentialRule,
+    ExternalScriptAuth,
     HeaderAuth,
     OAuth2ClientCredentialsAuth,
     QueryParamAuth,
@@ -48,5 +49,7 @@ def mask_rule(rule: CredentialRule) -> dict:
         case OAuth2ClientCredentialsAuth():
             # AC-7.4: client_id and token_url shown, client_secret masked
             data["auth"]["client_secret"] = mask_secret(auth.client_secret)
+        case ExternalScriptAuth():
+            data["auth"]["env"] = {k: "***" for k in auth.env}
 
     return data
