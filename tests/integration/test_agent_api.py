@@ -174,6 +174,91 @@ class TestCredentialRequests:
         assert flow.response.status_code == 400
 
 
+class TestWebhookUrl:
+    async def test_create_with_webhook_url(self, handler):
+        """Webhook URL is accepted and stored."""
+        flow = make_flow("http://proxy/__auth/request")
+        flow.request.method = "POST"
+        flow.request.path = "/__auth/request"
+        flow.request.set_text(
+            json.dumps(
+                {
+                    "domain": "api.example.com",
+                    "reason": "test",
+                    "webhook_url": "https://hooks.example.com/whk_123",
+                }
+            )
+        )
+        await handler.handle(flow)
+        assert flow.response.status_code == 200
+        data = json.loads(flow.response.get_text())
+        assert "token" in data
+
+    async def test_create_without_webhook_url(self, handler):
+        """Request without webhook_url still works."""
+        flow = make_flow("http://proxy/__auth/request")
+        flow.request.method = "POST"
+        flow.request.path = "/__auth/request"
+        flow.request.set_text(
+            json.dumps({"domain": "api.example.com", "reason": "test"})
+        )
+        await handler.handle(flow)
+        assert flow.response.status_code == 200
+
+    async def test_invalid_webhook_url_ftp(self, handler):
+        """FTP webhook URL is rejected."""
+        flow = make_flow("http://proxy/__auth/request")
+        flow.request.method = "POST"
+        flow.request.path = "/__auth/request"
+        flow.request.set_text(
+            json.dumps(
+                {
+                    "domain": "api.example.com",
+                    "reason": "test",
+                    "webhook_url": "ftp://example.com/hook",
+                }
+            )
+        )
+        await handler.handle(flow)
+        assert flow.response.status_code == 400
+        data = json.loads(flow.response.get_text())
+        assert "webhook_url" in data["error"]
+
+    async def test_invalid_webhook_url_not_string(self, handler):
+        """Non-string webhook URL is rejected."""
+        flow = make_flow("http://proxy/__auth/request")
+        flow.request.method = "POST"
+        flow.request.path = "/__auth/request"
+        flow.request.set_text(
+            json.dumps(
+                {
+                    "domain": "api.example.com",
+                    "reason": "test",
+                    "webhook_url": 12345,
+                }
+            )
+        )
+        await handler.handle(flow)
+        assert flow.response.status_code == 400
+
+    async def test_invalid_webhook_url_empty(self, handler):
+        """Empty string webhook URL is rejected."""
+        flow = make_flow("http://proxy/__auth/request")
+        flow.request.method = "POST"
+        flow.request.path = "/__auth/request"
+        flow.request.set_text(
+            json.dumps(
+                {
+                    "domain": "api.example.com",
+                    "reason": "test",
+                    "webhook_url": "",
+                }
+            )
+        )
+        await handler.handle(flow)
+        assert flow.response.status_code == 400
+
+
 class TestStatusPolling:
     async def test_poll_pending(self, handler):
         """AC-12.1: Pending status."""

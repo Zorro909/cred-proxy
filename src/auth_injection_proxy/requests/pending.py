@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import secrets
 import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+
+import httpx
+
+logger = logging.getLogger(__name__)
 
 
 class RequestStatus(Enum):
@@ -25,6 +30,7 @@ class PendingRequest:
     ttl: int
     status: RequestStatus = RequestStatus.PENDING
     credential_id: str | None = None
+    webhook_url: str | None = None
 
 
 @dataclass
@@ -45,6 +51,15 @@ class SlidingWindowRateLimiter:
         return True
 
 
+def _fire_webhook(webhook_url: str, payload: dict) -> None:
+    """Fire-and-forget webhook notification. 5s timeout, single attempt."""
+    try:
+        httpx.post(webhook_url, json=payload, timeout=5.0)
+        logger.info("Webhook fired: url=%s", webhook_url)
+    except Exception as e:
+        logger.warning("Webhook failed: url=%s error=%s", webhook_url, e)
+
+
 class PendingRequestStore:
     def __init__(self, default_ttl: int = 900) -> None:
         self._requests: dict[str, PendingRequest] = {}
@@ -58,6 +73,7 @@ class PendingRequestStore:
         reason: str,
         auth_type: str | None = None,
         ttl: int | None = None,
+        webhook_url: str | None = None,
     ) -> PendingRequest:
         """Create a new pending credential request. Returns the request with token."""
         token = secrets.token_urlsafe(32)
@@ -68,6 +84,7 @@ class PendingRequestStore:
             auth_type=auth_type,
             created_at=time.monotonic(),
             ttl=ttl if ttl is not None else self._default_ttl,
+            webhook_url=webhook_url,
         )
         with self._lock:
             self._requests[token] = req
@@ -82,6 +99,7 @@ class PendingRequestStore:
             if req.status == RequestStatus.PENDING:
                 if time.monotonic() - req.created_at > req.ttl:
                     req.status = RequestStatus.EXPIRED
+                    self._notify_webhook(req)
             return req
 
     def get_status(self, token: str) -> RequestStatus | None:
@@ -104,7 +122,24 @@ class PendingRequestStore:
                 return False
             req.status = RequestStatus.FULFILLED
             req.credential_id = credential_id
-            return True
+        self._notify_webhook(req)
+        return True
+
+    def _notify_webhook(self, req: PendingRequest) -> None:
+        """Fire webhook notification if webhook_url is set."""
+        if not req.webhook_url:
+            return
+        payload = {
+            "token": req.token,
+            "status": req.status.value,
+            "domain": req.domain,
+        }
+        thread = threading.Thread(
+            target=_fire_webhook,
+            args=(req.webhook_url, payload),
+            daemon=True,
+        )
+        thread.start()
 
     def check_rate_limit(self) -> bool:
         """Returns True if the request is allowed, False if rate-limited."""
@@ -122,6 +157,10 @@ class PendingRequestStore:
                 or (r.status == RequestStatus.PENDING and now - r.created_at > r.ttl)
             ]
             for t in expired_tokens:
+                req = self._requests[t]
+                if req.status == RequestStatus.PENDING:
+                    req.status = RequestStatus.EXPIRED
+                    self._notify_webhook(req)
                 del self._requests[t]
                 removed += 1
         return removed

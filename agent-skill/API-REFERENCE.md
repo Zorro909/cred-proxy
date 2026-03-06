@@ -58,6 +58,7 @@ Request credentials for a domain that doesn't have a rule yet. The human operato
 | `domain` | string | yes | Fully-qualified domain name (validated against `^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)*$`) |
 | `auth_type` | string | no | Hint for the operator. One of: `bearer`, `basic`, `header`, `query_param`, `oauth2_client_credentials` |
 | `reason` | string | no | Why you need access (max 500 characters) |
+| `webhook_url` | string | no | HTTP/HTTPS URL to receive a POST when the request is fulfilled or expires |
 
 ### Response `200 OK`
 
@@ -83,7 +84,24 @@ Request credentials for a domain that doesn't have a rule yet. The human operato
 | `400` | `{"error": "Invalid domain"}` | Missing or malformed domain |
 | `400` | `{"error": "Reason must be 500 characters or less"}` | Reason too long |
 | `400` | `{"error": "Invalid auth_type. Must be one of: ..."}` | Unknown auth type |
+| `400` | `{"error": "webhook_url must be a valid HTTP or HTTPS URL"}` | Invalid webhook URL |
 | `429` | `{"error": "Rate limit exceeded"}` | Too many requests in the time window |
+
+### Webhook Notifications
+
+When `webhook_url` is provided, cred-proxy POSTs a notification when the request is fulfilled or expires:
+
+```json
+{
+  "token": "abc123...",
+  "status": "fulfilled",
+  "domain": "api.example.com"
+}
+```
+
+- Fire-and-forget: 5-second timeout, single attempt, no retries
+- Fires on both `fulfilled` and `expired` status changes
+- Polling still works alongside webhooks
 
 ---
 
