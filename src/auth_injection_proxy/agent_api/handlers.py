@@ -102,18 +102,14 @@ class AgentApiHandler:
         webhook_url = body.get("webhook_url")
         if webhook_url is not None:
             if not isinstance(webhook_url, str):
-                _respond_json(
-                    flow, 400, {"error": "webhook_url must be a valid HTTP or HTTPS URL"}
-                )
+                _respond_json(flow, 400, {"error": "webhook_url must be a valid HTTP or HTTPS URL"})
                 return
             try:
                 parsed = urlparse(webhook_url)
                 if parsed.scheme not in ("http", "https") or not parsed.netloc:
                     raise ValueError("bad url")
             except Exception:
-                _respond_json(
-                    flow, 400, {"error": "webhook_url must be a valid HTTP or HTTPS URL"}
-                )
+                _respond_json(flow, 400, {"error": "webhook_url must be a valid HTTP or HTTPS URL"})
                 return
 
         req = self._pending.create(
