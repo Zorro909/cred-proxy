@@ -63,6 +63,7 @@ Request credentials for a domain the agent needs to access. This creates a pendi
 | `domain` | string | yes | Domain the agent needs credentials for |
 | `auth_type` | string | no | Preferred auth type (`bearer`, `basic`, `header`, `query_param`, `oauth2_client_credentials`) |
 | `reason` | string | no | Human-readable reason for the request (max 500 chars) |
+| `webhook_url` | string | no | HTTP/HTTPS URL to receive a POST notification when the request is fulfilled or expires |
 
 **Response:** `200 OK`
 
@@ -84,7 +85,7 @@ Request credentials for a domain the agent needs to access. This creates a pendi
 
 | Status | Reason |
 |--------|--------|
-| `400` | Invalid JSON, invalid domain, invalid auth_type, or reason too long |
+| `400` | Invalid JSON, invalid domain, invalid auth_type, reason too long, or invalid webhook_url |
 | `429` | Rate limit exceeded (10 requests per 60 seconds) |
 
 **Example:**
@@ -99,6 +100,48 @@ curl -x http://auth-proxy:8080 \
     "reason": "Need API access for data retrieval"
   }'
 ```
+
+**Example with webhook:**
+
+```bash
+curl -x http://auth-proxy:8080 \
+  -X POST http://any-host/__auth/request \
+  -H "Content-Type: application/json" \
+  -d '{
+    "domain": "api.newservice.com",
+    "auth_type": "bearer",
+    "reason": "Need API access",
+    "webhook_url": "https://hooks.example.com/whk_abc123"
+  }'
+```
+
+#### Webhook Notifications
+
+When `webhook_url` is provided, cred-proxy sends a POST notification when the request status changes:
+
+**Payload (on fulfillment):**
+
+```json
+{
+  "token": "abc123...",
+  "status": "fulfilled",
+  "domain": "api.newservice.com"
+}
+```
+
+**Payload (on expiry):**
+
+```json
+{
+  "token": "abc123...",
+  "status": "expired",
+  "domain": "api.newservice.com"
+}
+```
+
+- **Fire-and-forget**: 5-second timeout, single attempt, no retries
+- **Non-blocking**: Webhook failure does not affect credential activation
+- Polling via `GET /__auth/request/{token}/status` still works alongside webhooks
 
 ### `GET /__auth/request/{token}/status`
 

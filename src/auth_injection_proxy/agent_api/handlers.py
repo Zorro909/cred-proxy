@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from urllib.parse import urlparse
 
 from mitmproxy import http
 
@@ -97,7 +98,27 @@ class AgentApiHandler:
             _respond_json(flow, 400, {"error": f"Invalid auth_type. Must be one of: {valid}"})
             return
 
-        req = self._pending.create(domain=domain, reason=reason, auth_type=auth_type)
+        # Validate webhook_url if provided
+        webhook_url = body.get("webhook_url")
+        if webhook_url is not None:
+            if not isinstance(webhook_url, str):
+                _respond_json(
+                    flow, 400, {"error": "webhook_url must be a valid HTTP or HTTPS URL"}
+                )
+                return
+            try:
+                parsed = urlparse(webhook_url)
+                if parsed.scheme not in ("http", "https") or not parsed.netloc:
+                    raise ValueError("bad url")
+            except Exception:
+                _respond_json(
+                    flow, 400, {"error": "webhook_url must be a valid HTTP or HTTPS URL"}
+                )
+                return
+
+        req = self._pending.create(
+            domain=domain, reason=reason, auth_type=auth_type, webhook_url=webhook_url
+        )
 
         setup_url = f"http://localhost:{self._mgmt_port}/setup/{req.token}"
         logger.info("Credential request created: token=%s domain=%s", req.token[:8] + "...", domain)
