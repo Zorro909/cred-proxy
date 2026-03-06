@@ -199,9 +199,7 @@ class TestWebhookUrl:
         flow = make_flow("http://proxy/__auth/request")
         flow.request.method = "POST"
         flow.request.path = "/__auth/request"
-        flow.request.set_text(
-            json.dumps({"domain": "api.example.com", "reason": "test"})
-        )
+        flow.request.set_text(json.dumps({"domain": "api.example.com", "reason": "test"}))
         await handler.handle(flow)
         assert flow.response.status_code == 200
 
