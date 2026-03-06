@@ -1,7 +1,7 @@
 """AC-10, AC-12: Credential requests and polling tests."""
 
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from auth_injection_proxy.requests.pending import PendingRequestStore, RequestStatus
 
